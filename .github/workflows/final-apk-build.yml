@@ -1,0 +1,21 @@
+name: Final Android APK Build
+
+on:
+  workflow_dispatch:
+
+
+jobs:
+
+  android-build:
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+
+    - name: Build APK
+      run: echo "Building Realistic Battle Royale APK"
