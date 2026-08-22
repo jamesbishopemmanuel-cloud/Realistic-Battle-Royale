@@ -22,7 +22,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK
         run: |
           sdkmanager "platform-tools"
           sdkmanager "platforms;android-35"
@@ -40,7 +40,7 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
           echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
 
-      - name: Configure Android environment
+      - name: Configure Android
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
@@ -57,55 +57,49 @@ jobs:
             "https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz" \
             -O /tmp/templates.tpz
 
-          unzip -q \
-            /tmp/templates.tpz \
+          unzip -q /tmp/templates.tpz \
             -d /tmp/godot-templates
 
-          cp \
-            /tmp/godot-templates/templates/android_debug.apk \
+          cp /tmp/godot-templates/templates/android_debug.apk \
             "$TEMPLATE_DIR/android_debug.apk"
 
-          cp \
-            /tmp/godot-templates/templates/android_release.apk \
+          cp /tmp/godot-templates/templates/android_release.apk \
             "$TEMPLATE_DIR/android_release.apk"
 
       - name: Verify project
         run: |
           test -f project.godot
           test -f export_presets.cfg
-          test -f scripts/ci_setup.gd
           test -f scenes/Main.tscn
 
-      - name: Configure Godot Android SDK
+      - name: Import Godot project
         run: |
           godot \
             --headless \
             --editor \
             --path . \
-            --script res://scripts/ci_setup.gd
+            --quit
 
-      - name: Show Android configuration
+      - name: Check environment
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "JAVA_HOME=$JAVA_HOME"
-
-          echo "Android SDK:"
-          ls -la "$ANDROID_SDK_ROOT"
-
-          echo "ADB:"
-          "$ANDROID_SDK_ROOT/platform-tools/adb" version || true
-
           echo "Godot:"
           godot --version
 
-      - name: Create build directory
+          echo "Android SDK:"
+          echo "$ANDROID_SDK_ROOT"
+
+          echo "Java:"
+          java -version
+
+          echo "Templates:"
+          ls -lh \
+            "$HOME/.local/share/godot/export_templates/4.5.1.stable"
+
+      - name: Build Android APK
         run: |
           rm -rf build
           mkdir -p build
 
-      - name: Build Android APK
-        run: |
           godot \
             --headless \
             --verbose \
@@ -116,8 +110,9 @@ jobs:
       - name: Verify APK
         run: |
           test -f build/RealisticBattleRoyale.apk
+
+          echo "APK successfully created:"
           ls -lh build/RealisticBattleRoyale.apk
-          file build/RealisticBattleRoyale.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
