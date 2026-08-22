@@ -16,216 +16,110 @@ jobs:
 
     steps:
 
-      # ----------------------------------------
-      # 1. Download repository
-      # ----------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
-      # ----------------------------------------
-      # 2. Install Android SDK
-      # ----------------------------------------
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-
-      # ----------------------------------------
-      # 3. Install Android build components
-      # ----------------------------------------
       - name: Install Android SDK packages
         run: |
+          sdkmanager "platform-tools"
+          sdkmanager "platforms;android-35"
+          sdkmanager "build-tools;35.0.0"
           yes | sdkmanager --licenses || true
 
-          sdkmanager \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
-
-
-      # ----------------------------------------
-      # 4. Configure Java
-      # ----------------------------------------
-      - name: Configure Java 17
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
-          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
-
-
-      # ----------------------------------------
-      # 5. Install Godot 4.5.1
-      # ----------------------------------------
       - name: Setup Godot
         uses: chickensoft-games/setup-godot@v2
         with:
           version: 4.5.1
           use-dotnet: false
 
-
-      # ----------------------------------------
-      # 6. Verify Godot
-      # ----------------------------------------
-      - name: Verify Godot
+      - name: Configure Java
         run: |
-          godot --version
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
 
-
-      # ----------------------------------------
-      # 7. Install Godot Android export templates
-      # ----------------------------------------
-      - name: Install Godot Android export templates
+      - name: Configure Android environment
         run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
 
-          GODOT_VERSION="4.5.1.stable"
-
-          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/$GODOT_VERSION"
+      - name: Install Godot export templates
+        run: |
+          VERSION="4.5.1.stable"
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/$VERSION"
 
           mkdir -p "$TEMPLATE_DIR"
+          mkdir -p /tmp/godot-templates
 
           wget -q \
             "https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz" \
-            -O /tmp/godot-export-templates.tpz
-
-          mkdir -p /tmp/godot-export-templates
+            -O /tmp/templates.tpz
 
           unzip -q \
-            /tmp/godot-export-templates.tpz \
-            -d /tmp/godot-export-templates
+            /tmp/templates.tpz \
+            -d /tmp/godot-templates
 
           cp \
-            /tmp/godot-export-templates/templates/android_debug.apk \
+            /tmp/godot-templates/templates/android_debug.apk \
             "$TEMPLATE_DIR/android_debug.apk"
 
           cp \
-            /tmp/godot-export-templates/templates/android_release.apk \
+            /tmp/godot-templates/templates/android_release.apk \
             "$TEMPLATE_DIR/android_release.apk"
 
-          echo "Installed Godot Android templates:"
-          ls -lh "$TEMPLATE_DIR"
-
-
-      # ----------------------------------------
-      # 8. Configure Android environment
-      # ----------------------------------------
-      - name: Configure Android environment
+      - name: Verify project
         run: |
-
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
-
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
-
-          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
-
-
-      # ----------------------------------------
-      # 9. Verify project files
-      # ----------------------------------------
-      - name: Verify Godot project
-        run: |
-
-          echo "Checking project..."
-
           test -f project.godot
-
           test -f export_presets.cfg
+          test -f scripts/ci_setup.gd
+          test -f scenes/Main.tscn
 
-          echo "Project files:"
-          ls -la
-
-          echo ""
-          echo "Project settings:"
-          cat project.godot
-
-          echo ""
-          echo "Export presets:"
-          cat export_presets.cfg
-
-
-      # ----------------------------------------
-      # 10. Import Godot project
-      # ----------------------------------------
-      - name: Import Godot project
+      - name: Configure Godot Android SDK
         run: |
-
           godot \
             --headless \
             --editor \
             --path . \
-            --quit
+            --script res://scripts/ci_setup.gd
 
-
-      # ----------------------------------------
-      # 11. Check Android environment
-      # ----------------------------------------
-      - name: Check Android environment
+      - name: Show Android configuration
         run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "JAVA_HOME=$JAVA_HOME"
 
           echo "Android SDK:"
-          echo "$ANDROID_SDK_ROOT"
-
-          echo ""
-
-          echo "Java:"
-          java -version
-
-          echo ""
+          ls -la "$ANDROID_SDK_ROOT"
 
           echo "ADB:"
-          adb version || true
-
-          echo ""
+          "$ANDROID_SDK_ROOT/platform-tools/adb" version || true
 
           echo "Godot:"
           godot --version
 
-
-      # ----------------------------------------
-      # 12. Create build directory
-      # ----------------------------------------
-      - name: Create APK build directory
+      - name: Create build directory
         run: |
-
           rm -rf build
-
           mkdir -p build
 
-
-      # ----------------------------------------
-      # 13. Build Android APK
-      # ----------------------------------------
       - name: Build Android APK
         run: |
-
           godot \
             --headless \
+            --verbose \
             --path . \
             --export-release "Android" \
             build/RealisticBattleRoyale.apk
 
-
-      # ----------------------------------------
-      # 14. Verify APK
-      # ----------------------------------------
       - name: Verify APK
         run: |
-
-          echo "Checking APK..."
-
           test -f build/RealisticBattleRoyale.apk
-
-          echo ""
-
           ls -lh build/RealisticBattleRoyale.apk
-
-          echo ""
-
           file build/RealisticBattleRoyale.apk
 
-
-      # ----------------------------------------
-      # 15. Upload APK
-      # ----------------------------------------
-      - name: Upload Android APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Realistic-Battle-Royale-Android-APK
