@@ -1,4 +1,4 @@
-name: Build Battle Royale Android APK
+name: Build Realistic Battle Royale APK
 
 on:
   workflow_dispatch:
@@ -7,12 +7,23 @@ on:
       - main
 
 jobs:
-  build:
+  android:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools"
+          sdkmanager "platforms;android-35"
+          sdkmanager "build-tools;35.0.0"
+          yes | sdkmanager --licenses
 
       - name: Setup Godot
         uses: chickensoft-games/setup-godot@v2
@@ -20,45 +31,55 @@ jobs:
           version: 4.5.1
           use-dotnet: false
 
-      - name: Install Android export templates
+      - name: Install Godot export templates
         run: |
           mkdir -p "$HOME/.local/share/godot/export_templates/4.5.1.stable"
 
           wget -q \
             https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz \
-            -O /tmp/templates.tpz
+            -O /tmp/godot-templates.tpz
 
-          unzip -q /tmp/templates.tpz -d /tmp/godot_templates
+          mkdir -p /tmp/godot-templates
 
-          cp /tmp/godot_templates/templates/android_debug.apk \
+          unzip -q \
+            /tmp/godot-templates.tpz \
+            -d /tmp/godot-templates
+
+          cp /tmp/godot-templates/templates/android_debug.apk \
             "$HOME/.local/share/godot/export_templates/4.5.1.stable/android_debug.apk"
 
-          cp /tmp/godot_templates/templates/android_release.apk \
+          cp /tmp/godot-templates/templates/android_release.apk \
             "$HOME/.local/share/godot/export_templates/4.5.1.stable/android_release.apk"
 
-      - name: Check Godot project
+      - name: Configure Android environment
         run: |
-          godot --headless --path . --editor --quit
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
 
-      - name: Show Android export presets
+      - name: Verify project
+        run: |
+          test -f project.godot
+          test -f export_presets.cfg
+
+      - name: Check export presets
         run: |
           echo "===== export_presets.cfg ====="
           cat export_presets.cfg
 
-      - name: Build Android APK
+      - name: Build APK
         run: |
           mkdir -p build
 
-          godot --headless \
+          godot \
+            --headless \
             --path . \
-            --editor \
-            --quit \
             --export-release "Android" \
             build/RealisticBattleRoyale.apk
 
-      - name: Check APK
+      - name: Verify APK
         run: |
-          ls -lah build/
+          test -f build/RealisticBattleRoyale.apk
+          ls -lh build/RealisticBattleRoyale.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
