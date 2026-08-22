@@ -1,19 +1,31 @@
-[application]
+[input]
 
-config/name="Realistic Battle Royale"
-run/main_scene="res://scenes/Main.tscn"
+move_forward={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":87)]
+}
 
-[display]
+move_back={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":83)]
+}
 
-window/size/viewport_width=1280
-window/size/viewport_height=720
+move_left={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":65)]
+}
 
-[display/window]
+move_right={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":68)]
+}
 
-size/viewport_width=1280
-size/viewport_height=720
+jump={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":32)]
+}
 
-[rendering]
-
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+sprint={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":4194325)]
+}
