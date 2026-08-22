@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Battle Royale Android APK
 
 on:
   workflow_dispatch:
@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -20,13 +21,23 @@ jobs:
           version: 4.5.1
           use-dotnet: false
 
-      - name: Import project
+      - name: Install Godot Android Export Templates
         run: |
-          godot --headless --editor --quit
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          wget -q \
+            https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz \
+            -O /tmp/templates.tpz
+          unzip -q /tmp/templates.tpz -d /tmp/godot_templates
+          cp /tmp/godot_templates/templates/android_debug.apk \
+            "$HOME/.local/share/godot/export_templates/4.5.1.stable/android_debug.apk"
+          cp /tmp/godot_templates/templates/android_release.apk \
+            "$HOME/.local/share/godot/export_templates/4.5.1.stable/android_release.apk"
 
-      - name: Build APK
+      - name: Create build directory
+        run: mkdir -p build
+
+      - name: Build Android APK
         run: |
-          mkdir -p build
           godot --headless \
             --path . \
             --export-release "Android" \
@@ -35,5 +46,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Realistic-Battle-Royale-Android
+          name: Realistic-Battle-Royale-APK
           path: build/RealisticBattleRoyale.apk
