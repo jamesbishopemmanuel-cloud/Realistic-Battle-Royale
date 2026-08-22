@@ -1,0 +1,23 @@
+name: Android Release Build
+
+on:
+  push:
+    tags:
+      - "v*"
+
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+
+    - name: Build Android
+      run: echo "Building APK..."
