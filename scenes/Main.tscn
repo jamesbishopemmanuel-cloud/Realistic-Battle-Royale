@@ -1,0 +1,40 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
+[ext_resource type="Script" path="res://scripts/battle_royale.gd" id="3_battle"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_ground"]
+size = Vector3(200, 0.2, 200)
+
+[sub_resource type="BoxShape3D" id="BoxShape_ground"]
+size = Vector3(200, 0.2, 200)
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="Ground" type="StaticBody3D" parent="."]
+
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("BoxMesh_ground")
+
+[node name="Collision" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("BoxShape_ground")
+
+[node name="Player" type="CharacterBody3D" parent="."]
+position = Vector3(0, 2, 0)
+script = ExtResource("2_player")
+
+[node name="BattleRoyale" type="Node" parent="."]
+script = ExtResource("3_battle")
+
+[node name="Camera3D" type="Camera3D" parent="Player"]
+position = Vector3(0, 2.5, 6)
+rotation_degrees = Vector3(-10, 180, 0)
+current = true
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-50, -30, 0)
+shadow_enabled = true
