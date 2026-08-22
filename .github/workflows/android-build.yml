@@ -1,0 +1,25 @@
+name: Android Build
+
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+
+    - name: Build Unity Project
+      uses: game-ci/unity-builder@v4
+      with:
+        targetPlatform: Android
