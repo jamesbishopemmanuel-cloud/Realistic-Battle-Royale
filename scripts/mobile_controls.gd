@@ -1,24 +1,39 @@
-extends Node
+extends CanvasLayer
 
-var movement := Vector2.ZERO
-var look := Vector2.ZERO
+@onready var player = get_parent()
 
-
-func set_movement(value: Vector2):
-    movement = value
+var move_vector := Vector2.ZERO
 
 
-func set_look(value: Vector2):
-    look = value
+func _ready():
+    pass
+
+
+func set_move_vector(value: Vector2):
+
+    move_vector = value
 
 
 func fire():
-    print("Mobile fire")
 
-
-func reload():
-    print("Mobile reload")
+    if player.has_method("fire_weapon"):
+        player.fire_weapon()
 
 
 func jump():
-    print("Mobile jump")
+
+    Input.action_press("jump")
+
+    await get_tree().create_timer(0.1).timeout
+
+    Input.action_release("jump")
+
+
+func sprint():
+
+    Input.action_press("sprint")
+
+
+func stop_sprint():
+
+    Input.action_release("sprint")
