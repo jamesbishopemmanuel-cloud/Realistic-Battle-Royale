@@ -1,0 +1,22 @@
+# Realistic Battle Royale
+
+A realistic mobile battle royale game project.
+
+Features:
+- Player combat
+- Weapon system
+- Health system
+- Loot system
+- Safe zone shrinking
+- AI enemies
+- Multiplayer-ready structure
+
+Engine:
+Unity 3D
+
+Future:
+- Online multiplayer
+- Vehicles
+- Skins
+- Battle pass
+- Mobile optimization
