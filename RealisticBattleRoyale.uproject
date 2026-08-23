@@ -1,0 +1,22 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.6",
+  "Category": "Games",
+  "Description": "Realistic Battle Royale - Android",
+  "Modules": [
+    {
+      "Name": "RealisticBattleRoyale",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "TargetPlatforms": [
+    "Android"
+  ],
+  "Plugins": [
+    {
+      "Name": "AndroidFileServer",
+      "Enabled": true
+    }
+  ]
+}
