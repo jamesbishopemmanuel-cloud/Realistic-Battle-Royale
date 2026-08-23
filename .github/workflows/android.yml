@@ -1,51 +1,453 @@
-      - name: Diagnose Android export
+name: Realistic Battle Royale - Android Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Choose APK build type"
+        required: true
+        default: "debug"
+        type: choice
+        options:
+          - debug
+          - release
+
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.5.1"
+  GODOT_VERSION_FULL: "4.5.1.stable"
+  ANDROID_API: "35"
+  ANDROID_BUILD_TOOLS: "35.0.0"
+  APK_NAME: "RealisticBattleRoyale.apk"
+
+jobs:
+
+  # ==========================================================
+  # VALIDATE
+  # ==========================================================
+
+  validate:
+    name: Validate Godot Project
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show repository
+        run: |
+          echo "===== REPOSITORY ====="
+          find . -maxdepth 3 -type f \
+            ! -path "./.git/*" \
+            | sort
+
+      - name: Validate required files
         shell: bash
         run: |
-          echo "======================================"
-          echo "GODOT VERSION"
-          echo "======================================"
-          godot --version
+          set -e
 
-          echo ""
-          echo "======================================"
-          echo "ANDROID SDK"
-          echo "======================================"
-          echo "$ANDROID_SDK_ROOT"
-
-          echo ""
-          echo "======================================"
-          echo "JAVA"
-          echo "======================================"
-          echo "$JAVA_HOME"
-
-          echo ""
-          echo "======================================"
-          echo "EXPORT PRESET"
-          echo "======================================"
-          cat export_presets.cfg
-
-          echo ""
-          echo "======================================"
-          echo "EXPORT TEMPLATES"
-          echo "======================================"
-
-          ls -lh \
-            "$HOME/.local/share/godot/export_templates/4.5.1.stable/"
-
-          echo ""
-          echo "======================================"
-          echo "ANDROID SDK PACKAGES"
-          echo "======================================"
-
-          sdkmanager --list_installed | grep -E \
-            "platform-tools|platforms;android-35|build-tools;35"
-
-          echo ""
-          echo "======================================"
-          echo "GODOT PROJECT CHECK"
-          echo "======================================"
+          echo "Checking Godot project..."
 
           test -f project.godot
           test -f export_presets.cfg
 
-          echo "Project files OK."
+          echo "project.godot       OK"
+          echo "export_presets.cfg  OK"
+
+          if [ -d "scenes" ]; then
+            echo "scenes directory     OK"
+          fi
+
+          if [ -d "scripts" ]; then
+            echo "scripts directory    OK"
+          fi
+
+      - name: Check Android preset
+        shell: bash
+        run: |
+          set -e
+
+          grep -q 'name="Android"' export_presets.cfg
+          grep -q 'platform="Android"' export_presets.cfg
+
+          echo "Android export preset detected."
+
+
+  # ==========================================================
+  # ANDROID BUILD
+  # ==========================================================
+
+  android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+
+      # ------------------------------------------------------
+      # CHECKOUT
+      # ------------------------------------------------------
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      # ------------------------------------------------------
+      # JAVA
+      # ------------------------------------------------------
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+
+      # ------------------------------------------------------
+      # ANDROID SDK
+      # ------------------------------------------------------
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -e
+
+          sdkmanager "platform-tools"
+          sdkmanager "platforms;android-${ANDROID_API}"
+          sdkmanager "build-tools;${ANDROID_BUILD_TOOLS}"
+
+          yes | sdkmanager --licenses || true
+
+          echo "Android SDK installation complete."
+
+
+      # ------------------------------------------------------
+      # CACHE GODOT
+      # ------------------------------------------------------
+
+      - name: Cache Godot export templates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/godot/export_templates
+            ~/.cache/godot
+          key: godot-${{ env.GODOT_VERSION_FULL }}-${{ runner.os }}
+          restore-keys: |
+            godot-${{ env.GODOT_VERSION_FULL }}-
+            godot-
+
+
+      # ------------------------------------------------------
+      # GODOT
+      # ------------------------------------------------------
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: false
+
+
+      # ------------------------------------------------------
+      # GODOT EXPORT TEMPLATES
+      # ------------------------------------------------------
+
+      - name: Install Godot export templates
+        shell: bash
+        run: |
+          set -e
+
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION_FULL}"
+
+          mkdir -p "$TEMPLATE_DIR"
+
+          if [ ! -f "$TEMPLATE_DIR/android_debug.apk" ]; then
+
+            echo "Downloading Godot export templates..."
+
+            wget -q \
+              "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" \
+              -O /tmp/godot-templates.tpz
+
+            rm -rf /tmp/godot-templates
+
+            mkdir -p /tmp/godot-templates
+
+            unzip -q \
+              /tmp/godot-templates.tpz \
+              -d /tmp/godot-templates
+
+            cp \
+              /tmp/godot-templates/templates/android_debug.apk \
+              "$TEMPLATE_DIR/android_debug.apk"
+
+            cp \
+              /tmp/godot-templates/templates/android_release.apk \
+              "$TEMPLATE_DIR/android_release.apk"
+
+          fi
+
+          echo "===== EXPORT TEMPLATES ====="
+
+          ls -lh "$TEMPLATE_DIR"
+
+
+      # ------------------------------------------------------
+      # ENVIRONMENT
+      # ------------------------------------------------------
+
+      - name: Configure environment
+        shell: bash
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+
+          echo "===== ENVIRONMENT ====="
+
+          echo "Godot:"
+          godot --version
+
+          echo ""
+          echo "Java:"
+          java -version
+
+          echo ""
+          echo "Android SDK:"
+          echo "$ANDROID_SDK_ROOT"
+
+          echo ""
+          echo "ADB:"
+          adb version
+
+
+      # ------------------------------------------------------
+      # PROJECT CHECK
+      # ------------------------------------------------------
+
+      - name: Check project configuration
+        shell: bash
+        run: |
+          set -e
+
+          echo "===== project.godot ====="
+          cat project.godot
+
+          echo ""
+          echo "===== export_presets.cfg ====="
+          cat export_presets.cfg
+
+          echo ""
+          echo "===== Required files ====="
+
+          test -f project.godot
+          test -f export_presets.cfg
+
+
+      # ------------------------------------------------------
+      # IMPORT
+      # ------------------------------------------------------
+
+      - name: Import Godot project
+        shell: bash
+        run: |
+          set -e
+
+          godot \
+            --headless \
+            --editor \
+            --path . \
+            --quit
+
+
+      # ------------------------------------------------------
+      # BUILD DIRECTORY
+      # ------------------------------------------------------
+
+      - name: Prepare build directory
+        run: |
+          rm -rf build
+          mkdir -p build
+
+
+      # ------------------------------------------------------
+      # DETERMINE BUILD TYPE
+      # ------------------------------------------------------
+
+      - name: Determine build type
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "BUILD_TYPE=${{ inputs.build_type }}" >> "$GITHUB_ENV"
+          else
+            echo "BUILD_TYPE=debug" >> "$GITHUB_ENV"
+          fi
+
+
+      # ------------------------------------------------------
+      # BUILD DEBUG APK
+      # ------------------------------------------------------
+
+      - name: Build Debug APK
+        if: env.BUILD_TYPE == 'debug'
+        shell: bash
+        run: |
+          set -e
+
+          echo "=========================================="
+          echo "BUILDING DEBUG APK"
+          echo "=========================================="
+
+          godot \
+            --headless \
+            --verbose \
+            --path . \
+            --export-debug \
+            "Android" \
+            "build/${APK_NAME}"
+
+          echo "Debug APK build completed."
+
+
+      # ------------------------------------------------------
+      # RELEASE BUILD
+      # ------------------------------------------------------
+
+      - name: Check release signing configuration
+        if: env.BUILD_TYPE == 'release'
+        shell: bash
+        run: |
+          echo "Release build selected."
+
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "ERROR: ANDROID_KEYSTORE_BASE64 secret is missing."
+            echo ""
+            echo "For now run the workflow with:"
+            echo "build_type = debug"
+            exit 1
+          fi
+
+
+      - name: Decode Android keystore
+        if: env.BUILD_TYPE == 'release'
+        shell: bash
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" \
+            | base64 --decode \
+            > android-release.keystore
+
+          chmod 600 android-release.keystore
+
+
+      - name: Build Release APK
+        if: env.BUILD_TYPE == 'release'
+        shell: bash
+        run: |
+          set -e
+
+          echo "=========================================="
+          echo "BUILDING RELEASE APK"
+          echo "=========================================="
+
+          godot \
+            --headless \
+            --verbose \
+            --path . \
+            --export-release \
+            "Android" \
+            "build/${APK_NAME}"
+
+          echo "Release APK build completed."
+
+
+      # ------------------------------------------------------
+      # APK VALIDATION
+      # ------------------------------------------------------
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -e
+
+          echo "=========================================="
+          echo "VERIFYING APK"
+          echo "=========================================="
+
+          if [ ! -f "build/${APK_NAME}" ]; then
+            echo "ERROR: APK was not generated."
+            exit 1
+          fi
+
+          ls -lh "build/${APK_NAME}"
+
+          file "build/${APK_NAME}"
+
+          echo ""
+          echo "APK successfully generated."
+
+
+      # ------------------------------------------------------
+      # APK INFORMATION
+      # ------------------------------------------------------
+
+      - name: Inspect APK
+        shell: bash
+        run: |
+          set +e
+
+          echo "=========================================="
+          echo "APK INFORMATION"
+          echo "=========================================="
+
+          if command -v apkanalyzer >/dev/null 2>&1; then
+            apkanalyzer \
+              apk summary \
+              "build/${APK_NAME}"
+          fi
+
+          echo ""
+          echo "SHA256:"
+
+          sha256sum "build/${APK_NAME}"
+
+
+      # ------------------------------------------------------
+      # UPLOAD APK
+      # ------------------------------------------------------
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Realistic-Battle-Royale-Android-${{ env.BUILD_TYPE }}
+          path: build/${{ env.APK_NAME }}
+          if-no-files-found: error
+          retention-days: 30
+
+
+      # ------------------------------------------------------
+      # UPLOAD BUILD LOGS
+      # ------------------------------------------------------
+
+      - name: Upload build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Realistic-Battle-Royale-Build-Diagnostics
+          path: |
+            .godot/
+            build/
+            export_presets.cfg
+            project.godot
+          if-no-files-found: ignore
+          retention-days: 7
